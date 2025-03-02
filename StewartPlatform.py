@@ -4,7 +4,7 @@ import serial
 import time
 from Controllers import DSTA
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from matplotlib.animation import FuncAnimation, PillowWriter, FFMpegWriter
+
 
 class StewartPlatform:
     def __init__(self, id, r_B, r_P, gamma_B_deg, gamma_P_deg, serial_port=None, control_parameters=None, dt=0.01, controller_type="PID", base_offset=None, home_position=None,home_orientation=None):
