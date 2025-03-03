@@ -9,7 +9,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 class StewartPlatform:
     def __init__(self, id, r_B, r_P, gamma_B_deg, gamma_P_deg, serial_port=None, control_parameters=None, dt=0.01, controller_type="PID", base_offset=None, home_position=None,home_orientation=None):
 
-        self.id = id
+        self.platform_id = id
         self.dt = dt
         self.controller_type = controller_type  # "PID" or "DSTA"
         self.kp = [100, 100, 100, 100, 100, 100]    # Individual Proportional gains for each motor
