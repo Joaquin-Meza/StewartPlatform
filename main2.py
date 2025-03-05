@@ -80,7 +80,7 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
                     arduino.write(control_string.encode('utf-8'))
                     time.sleep(0.05)
                     try:
-                        arduino.setTimeout(1)   # Set 1 second timeout for response
+                        #arduino.setTimeout(1)   # Set 1 second timeout for response
                         # Read actuator feedback from Arduino
                         feedback = arduino.readline().decode('utf-8', errors='ignore').strip()      # Read the incoming data, decode the 'utf-8' format and remove leading and trailing whitespaces
                         if feedback:
@@ -142,7 +142,12 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
             arduino.write(b"EMERGENCY_STOP\n")  # Send Stop command to arduino
         time.sleep(1)
 
-
+def control_bounds(x):
+    if x >= 255:
+        x = 255
+    elif x <= -255:
+        x = -255
+    return x
 
 
 def test_Actuator(platform, actuator, controller, steps, dt=0.1, arduino=None, update_interval=5):
@@ -175,14 +180,18 @@ def test_Actuator(platform, actuator, controller, steps, dt=0.1, arduino=None, u
     time.sleep(0.5)
     try:
         emergency_stop_triggered = False    # Initialize emergency stop flag
+        arduino.flushInput()                # Clear any old data in the serial buffer
+
         # Simulation loop
         for step in range(steps):
 
             # Get the desired actuator position from trajectory
             position = trajectory[step]
 
+
             # Compute the error
             error = position - platform.current_lengths[actuator]
+            print(f"Error: {error}, Current position: {platform.current_lengths[actuator]}")
 
             control = 0
 
@@ -190,19 +199,36 @@ def test_Actuator(platform, actuator, controller, steps, dt=0.1, arduino=None, u
                 control = platform.pid_control(position, actuator)
             elif controller == 'DSTA':
                 control = platform.dsta_controllers[actuator].derivative(error)
+                print("Control", control)
 
             # Send control signal and receive feedback
             try:
                 # Send control command in forma: "ACTUATOR_TEST, <platform_index>,<actuator_index>,<control_signal>"
-                control = max(min(int(control+255), 510), 0)
-                control_str = f"ACTUATOR_TEST,{platform.platform_id},{actuator},{int(control)}\n"
+                control = round(control_bounds(control), 0)
+                control_str = f"ACTUATOR_TEST,{platform.platform_id},{actuator},{control}\n"
+
+
+                print(f"Sending command: {control_str}")    # Debug: Show what is sent
                 arduino.write(control_str.encode('utf-8'))
                 time.sleep(0.05)
 
+                # Debug check if Arduino has data Available
+                # Time out for serial read to revent indefinite waiting
+                start_time = time.time()
+                while arduino.in_waiting == 0:
+                    if time.time() - start_time > 2:    # Time after 2 second
+                        print("Timeout Waiting for Arduino response")
+                        break
                 # Read actuator feedback from Arduino
                 feedback = arduino.readline().decode('utf-8', errors='ignore').strip()
-                if feedback:
+                print(f"Feedback received: {feedback}")
+                if feedback == "":
+                    continue        # Skip empty lines
+                if feedback:     # Ensure feedback is a valid number   .replace(".","",).isdigit()
                     platform.current_lengths[actuator] = float(feedback)
+                    print(f"Actuator current length: {platform.current_lengths[actuator]}")
+                else:
+                    print(f"Invalid feedback: {feedback} ")
             except ValueError:
                 print("Warning: Invalid feedback received", feedback)
 
@@ -233,18 +259,20 @@ def test_Actuator(platform, actuator, controller, steps, dt=0.1, arduino=None, u
                 ax[1].plot(time_steps, control_trajectory, label='Control Signal')
                 ax[1].set_title('Control signal')
                 ax[1].set_xlabel('Time (s)')
-                ax[1].set_ylabel('Position (cm)')
+                ax[1].set_ylabel('Gain')
                 ax[1].legend()
                 ax[1].grid(True)
 
                 plt.tight_layout()
                 plt.pause(0.1)
-            plt.show()
+
             if emergency_stop_triggered:
                 print("Emergency Stop Triggered! Stopping actuator...")
                 if arduino:
                     arduino.write(b"EMERGENCY_STOP\n")
                 break   # Exit main loop
+        plt.show()
+        arduino.write(b"STOP\n")
     except KeyboardInterrupt:
         print("\nEmergency stop triggered! Stopping actuators...")
         emergency_stop_triggered = True

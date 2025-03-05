@@ -48,6 +48,7 @@ class DSTA(STA):
         """
         Implements the Discrete Super-Twisting Algorithm (DSTA) with damping.
         """
+
         error = self.w1[-1] - variable  # Compute error
 
         w1_aux = self.rho1 * self.w1[-1] + self.tau * (self.w2[-1] - self.l1 * (np.sqrt(np.abs(error))) * np.sign(error))
