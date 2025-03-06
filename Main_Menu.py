@@ -119,7 +119,7 @@ def menu(platform1, platform2, positions1, orientations1, positions2, orientatio
                 print("Current actuator positions: ", response)
 
             elif choice == '3':
-                arduino.write(b'TEST\n')
+                #arduino.write(b'TEST\n')
                 print("Starting experiment...")
                 time.sleep(1)
                 # Simulate the dual platforms

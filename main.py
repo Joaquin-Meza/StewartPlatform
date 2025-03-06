@@ -19,7 +19,7 @@ trajectory_generator = PlatformTrajectory(v_apoyo=50, v_oscilacion=20, z_max=50,
 # Offset the platforms for side-by-side placement
 offset = 25  # Distance between the two platforms along the Y-axis
 # Create object instances for two platforms
-stewart = StewartPlatform(r_B=25, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port='COM5', controller_type='DSTA', base_offset=[0, -offset, 0])
+stewart = StewartPlatform(0, r_B=25, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, 0, 0])
 time.sleep(3)
 
 # Default parameters for simulation
