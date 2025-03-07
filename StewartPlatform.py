@@ -123,13 +123,15 @@ class StewartPlatform:
         orientation[1] = np.clip(orientation[1], -20, 20)       # Pitch constraint
         orientation[2] = np.clip(orientation[2], -10, 10)       # Yaw constraint
 
-        R = self.rotation_matrix(orientation)                                   # Rotation matrix from euler angles
+        R = self.rotation_matrix(orientation)       # Rotation matrix from euler angles
 
         P_global = np.array([R @ p + position for p in self.platform_points])   # Global position of points P_i
         lengths = np.linalg.norm(P_global - self.base_points, axis=1)           # Compute the lengths of each actuator:
 
+        # Convert from simulation (40 cm min) to encoder readings (0 cm min)
         # Enforce actuator constraints
-        lengths = np.clip(lengths, self.min_length, self.max_length)
+        lengths = np.clip(lengths, self.min_length, self.max_length)    # Keep within actuator limits
+        lengths = (lengths-40)*(30/(70-40))  # Scale to 0 - 30 range
         return lengths
 
     def pid_control(self, desired_length, actuator_idx):

@@ -72,7 +72,8 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
             # Compute the desired actuator lengths for both platforms using IK
             desired_lengths1 = platform1.inverse_kinematics(position1, orientation1)
             desired_lengths2 = platform2.inverse_kinematics(position2, orientation2)
-
+            print(f"Desired lengths: P1: {desired_lengths1} P2: {desired_lengths2}")
+            print(f"Current lengths: P1: {platform1.current_lengths}, P2:{platform2.current_lengths}")
             # Compute the error for both platforms actuators
             errors_1 = desired_lengths1-platform1.current_lengths
             errors_2 = desired_lengths2-platform2.current_lengths
