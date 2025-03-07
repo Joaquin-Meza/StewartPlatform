@@ -21,7 +21,7 @@ class StewartPlatform:
         self.serial_port = serial.Serial(serial_port, 250000) if serial_port else None
 
         # Set home position and orientation
-        self.home_position = np.array(home_position) if home_position else np.array([0, 0, 45])     # (x,y,z) Translation
+        self.home_position = np.array(home_position) if home_position else np.array([0, 0, 10])     # (x,y,z) Translation
         self.home_orientation = np.array(home_orientation) if home_orientation else np.array([0, 0, 0]) # (roll, pitch, yaw)
         #home_lengths = self.inverse_kinematics(self.home_position, self.home_orientation)
         self.min_length = self.home_position[2]+2

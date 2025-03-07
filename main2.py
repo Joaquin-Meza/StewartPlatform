@@ -95,7 +95,7 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
             if ideal_simulation == 0:
                 try:
                     # Send control signals to Arduino
-                    control_string = "TEST,"+','.join(f'{int(signal)}' for signal in np.concatenate((control_signals1, control_signals2))) + '\n'
+                    control_string = "TEST," +','.join(f'{int(signal)}' for signal in np.concatenate((control_signals1, control_signals2))) + '\n'
                     arduino.write(control_string.encode('utf-8'))
 
                     print(f"Sending command: {control_string}")     # Debug line - Show what is being sent
