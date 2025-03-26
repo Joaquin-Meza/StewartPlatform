@@ -265,49 +265,6 @@ void testActuatorTrajectory(){
 }
 //--------------------------------------------------------------
 
-void testIndividualActuator(int platform_idx, int actuator_idx, float target_Position){
-  const float tolerance = 0.2;  // Allowable error range
-  const int maxAttempts = 20;   // Prevent infinite loops
-
-  int attemptCounter = 0;
-  bool positionReached = false;
-  Serial.print("Platform ");
-  Serial.print(platform_idx);
-  Serial.print("Testing actuator ");
-  Serial.print(actuator_idx);
-  Serial.print(" to position ");
-  Serial.println(target_Position);
-
-  while (!positionReached && attemptCounter < maxAttempts){
-    if(emergencyStop){
-      stopActuators();
-      return;
-    }
-    updatePositionMeasurement(platform_idx, actuator_idx);
-    float error = actuatorPosition[0][actuator_idx] - target_Position;
-
-    if (error>tolerance){
-      pwmWrite(-180,DIR_A[platform_idx][actuator_idx],DIR_B[platform_idx][actuator_idx]);  // Move down
-    }
-    else if (error < tolerance){
-      pwmWrite(180,DIR_A[platform_idx][actuator_idx],DIR_B[platform_idx][actuator_idx]); // Move up
-    }
-    else {
-      pwmWrite(0,DIR_A[platform_idx][actuator_idx],DIR_B[platform_idx][actuator_idx]); //Stop
-      positionReached= true;
-    }
-    delay(200);
-    Serial.println(actuatorPosition[platform_idx][actuator_idx]);
-    attemptCounter++;
-    }
-
-    if (positionReached) {
-        Serial.println("Test Complete: Position reached.");
-    } 
-    else {
-        Serial.println("Test Failed: Position not reached.");
-    }
-}
 
 //____________________________________________________________________________________
 void mainLoop(){
@@ -334,7 +291,7 @@ void mainLoop(){
     }
     else if(receivedData == "TEST"){
       Serial.println("Running simulation");
-      //parseAndApplyLengths();
+      parseAndApplyLengths();
     }
     else if(receivedData.startsWith("ACTUATOR_TEST")){
       testActuatorTrajectory();

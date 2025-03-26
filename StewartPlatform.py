@@ -21,8 +21,14 @@ class StewartPlatform:
         self.serial_port = serial.Serial(serial_port, 250000) if serial_port else None
 
         # Set home position and orientation
-        self.home_position = np.array(home_position) if home_position else np.array([0, 0, 10])     # (x,y,z) Translation
-        self.home_orientation = np.array(home_orientation) if home_orientation else np.array([0, 0, 0]) # (roll, pitch, yaw)
+        if home_position is None:
+            self.home_position = np.array([0, 0, 0.01])     # (x,y,z) Translation
+        else:
+            self.home_position = np.array(home_position)
+        if home_orientation is None:
+            self.home_orientation = np.array([0, 0, 0])  # degrees (roll, pitch, yaw)
+        else:
+            self.home_orientation = np.array(home_orientation)
         #home_lengths = self.inverse_kinematics(self.home_position, self.home_orientation)
         self.min_length = self.home_position[2]+2
         self.max_length = 70
@@ -131,8 +137,10 @@ class StewartPlatform:
         # Convert from simulation (40 cm min) to encoder readings (0 cm min)
         # Enforce actuator constraints
         lengths = np.clip(lengths, self.min_length, self.max_length)    # Keep within actuator limits
-        lengths = (lengths-40)*(30/(70-40))  # Scale to 0 - 30 range
+        #           y = (x-40)+5
+        lengths = lengths-0     # Scale to 0 - 30 range
         return lengths
+    
 
     def pid_control(self, desired_length, actuator_idx):
         """
@@ -408,7 +416,7 @@ class StewartPlatform:
         plt.tight_layout()
         plt.show()
 
-    def plot_platform_response(self,log):
+    def plot_platform_response(self, log):
         """
         Plots the desired position and orientation of the Stewart Platform against the current values
         :param log: Dictionary containing the simulation logs with keys
@@ -449,14 +457,14 @@ class StewartPlatform:
         plt.tight_layout()
         plt.show()
 
-    def plot_actuator_rmse(self):
+    def plot_actuator_rmse(self, log):
         """
         Compute and plots the RMSE of the actuators
         :return:
         """
 
-        desired_lengths = np.array(self.log['desired_lengths'])
-        current_lengths = np.array(self.log['current_lengths'])
+        desired_lengths = np.array(log['desired_lengths'])
+        current_lengths = np.array(log['current_lengths'])
 
         # Compute RMSE for each actuator
         rmse = np.sqrt(np.mean((desired_lengths-current_lengths)**2, axis=0))
@@ -477,7 +485,7 @@ class StewartPlatform:
             json.dump(self.log, file, indent=4)
             print(f"Log saved to {filename}")
 
-    def control_bounds(self,x):
+    def control_bounds(self, x):
         if x >= 255:
             x = 255
         elif x <= -255:
@@ -570,11 +578,11 @@ class StewartPlatform:
                 self.current_lengths = np.clip(self.current_lengths, self.min_length, self.max_length)
 
             # Update visualization
-            if step % 5 == 0:
-                print(f"Step {step}: Desired Position: {position}, Orientation: {orientation}")
-                self.visualize_platform(position, orientation, ax)
+            #if step % 5 == 0:
+                #print(f"Step {step}: Desired Position: {position}, Orientation: {orientation}")
+                #self.visualize_platform(position, orientation, ax)
 
-            plt.draw()
+            #plt.draw()
             # Log data for plotting
             self.log['time'].append(step*self.dt)
             self.log['desired_lengths'].append(desired_lengths.copy())
@@ -584,7 +592,7 @@ class StewartPlatform:
 
         self.plot_actuator_response(self.log)
 
-    def test(self,positions, orientations, steps):
+    def test(self, positions, orientations, steps):
 
         self.log = {
             'time': [],

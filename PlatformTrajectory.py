@@ -58,13 +58,14 @@ class PlatformTrajectory:
 
         min_length1 = np.min(home_lengths1) + 5
         max_length1 = min_length1 + 20
+
         min_length2 = np.min(home_lengths2) + 5
         max_length2 = min_length2 + 20
 
 
         # Define the stepping pattern
         X = 20 * np.sin(2 * np.pi * t / self.T) * smooth_factor  # Forward-backward sinusoidal motion in X (-40 to 40 cm)
-        Z = self.min_length + (self.z_max-self.min_length)*(1-np.cos(2*np.pi*t/self.T))/2 # Vertical oscillation in Z
+        Z = self.min_length + (self.z_max-self.min_length)*(1-np.cos(2*np.pi*t/self.T))/2 -40 # Vertical oscillation in Z
         Y = np.zeros_like(X)  # No movement in Y
 
 
@@ -145,7 +146,7 @@ class PlatformTrajectory:
 
         return positions1, orientations1, positions2, orientations2
 
-    def generate_orientation_test_trajectory(self, steps):
+    def generate_orientation_test_trajectory(self, steps, dt, stewart_platform1, stewart_platform2):
         """
         Generates a trajectory where only orientation changes to test the Stewart Platform's rotational behavior.
 
@@ -157,22 +158,43 @@ class PlatformTrajectory:
             positions (ndarray): Fixed position for the platform (steps x 3).
             orientations (ndarray): Rotational movements (steps x 3).
         """
-        # Time vector for the trajectory
+        # Time vector
         t = np.linspace(0, self.T * self.num_cycles, steps)
 
-        # Keep position fixed
-        positions = np.zeros((steps, 3))
-        positions[:, 2] = self.min_length + 50  # Keep at a neutral height
+        # Damped oscillation envelope (simulate wobble decay)
+        damping = np.exp(-1.5 * t / (self.T * self.num_cycles))  # Higher value = faster decay
 
-        # Define rotational movement
-        Pitch = 15 * np.sin(2 * np.pi * t / self.T)  # Pitch oscillation
-        Roll = np.zeros_like(Pitch)  # No roll
-        Yaw = np.zeros_like(Pitch)  # No yaw
+        # Oscillate roll and pitch with 90° phase difference (like wobbling coin)
+        theta_max = self.theta_max  # Max angle in degrees (keep small, e.g., 2°–5°)
 
+        Roll = theta_max * np.sin(2 * np.pi * t / self.T) * damping
+        Pitch = theta_max * np.cos(2 * np.pi * t / self.T) * damping
+        Yaw = np.zeros_like(Roll)  # No yaw motion
 
-        orientations = np.vstack([Roll, Pitch, Yaw]).T
+        # Unwrap angles to avoid discontinuities (optional for small angles)
+        Roll = np.unwrap(Roll * np.pi / 180) * 180 / np.pi
+        Pitch = np.unwrap(Pitch * np.pi / 180) * 180 / np.pi
 
-        return positions, orientations
+        # No translation
+        X = np.zeros_like(Roll)
+        Y = np.zeros_like(Roll)
+        base_z = stewart_platform1.home_position[2]
+        Z = np.ones_like(Roll)*base_z
+
+        base_z2 = stewart_platform2.home_position[2]
+        Z2 = np.ones_like(Roll) * base_z2
+
+        # Second platform: out of phase (180° shift)
+        Roll2 = np.roll(Roll, steps // 2)
+        Pitch2 = np.roll(Pitch, steps // 2)
+        Yaw2 = np.zeros_like(Roll2)
+
+        positions1 = np.vstack([X, Y, Z]).T
+        orientations1 = np.vstack([Roll, Pitch, Yaw]).T
+        positions2 = np.vstack([X, Y, Z2]).T
+        orientations2 = np.vstack([Roll2, Pitch2, Yaw2]).T
+
+        return positions1, orientations1, positions2, orientations2
 
     def generate_wave_trajectory(self, steps):
         """
@@ -206,7 +228,7 @@ class PlatformTrajectory:
 
     def trajectory3(self,steps, dt, sw1,sw2):
         # Time vector for the trajectory
-        t = np.linspace(0,self.T*self.num_cycles, steps)
+        t = np.linspace(0, self.T*self.num_cycles, steps)
 
         # Apply smoothing function
         smooth_factor = 0.5 * (1 - np.cos(2*np.pi*t / self.T))
@@ -304,3 +326,34 @@ class PlatformTrajectory:
 
         return positions1, orientations1, positions2, orientations2
 
+    def generate_oscillatory_trajectory(self, steps):
+        """
+        Generates an oscillatory motion for the Stewart platform without translational displacement.
+
+        Parameters:
+            steps (int): Number of steps in the trajectory.
+            dt (float): Time interval between steps.
+
+        Returns:
+            positions (ndarray): Fixed positions over time (steps x 3).
+            orientations (ndarray): Oscillatory orientations over time (steps x 3).
+        """
+
+        # Time vector
+        t = np.linspace(0, self.T * self.num_cycles, steps)
+
+        # No translation: The platform remains in place
+        X = np.zeros(steps)  # Fixed X position
+        Y = np.zeros(steps)  # Fixed Y position
+        Z = np.full(steps, self.min_length + 5)  # Keep Z fixed at a reference height
+
+        # Define oscillatory motion in orientation
+        Roll = 10 * np.sin(2 * np.pi * t / self.T)  # Roll oscillation
+        Pitch = 15 * np.sin(2 * np.pi * t / self.T)  # Pitch oscillation
+        Yaw = 10 * np.sin(3 * np.pi * t / self.T)  # Yaw oscillation
+
+        # Combine into arrays
+        positions = np.vstack([X, Y, Z]).T  # Fixed positions
+        orientations = np.vstack([Roll, Pitch, Yaw]).T  # Oscillatory orientations
+
+        return positions, orientations

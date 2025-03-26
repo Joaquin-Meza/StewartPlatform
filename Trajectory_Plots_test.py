@@ -6,11 +6,8 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 # Create a trajectory generator
-trajectory_generator = PlatformTrajectory(
-    v_apoyo=100, v_oscilacion=50, z_max=50, theta_max=15,
-    y_max=10, roll_max=5, pitch_max=5, T=1, num_cycles=3
-)
-
+#trajectory_generator = PlatformTrajectory(v_apoyo=100, v_oscilacion=50, z_max=50, theta_max=15,y_max=10, roll_max=5, pitch_max=5, T=1, num_cycles=3)
+trajectory_generator = PlatformTrajectory(v_apoyo=50, v_oscilacion=20, z_max=50, theta_max=0.5, y_max=10, roll_max=5, pitch_max=10, T=3, num_cycles=1)
 
 # Generate trajectories
 steps = 300  # Total steps
@@ -23,8 +20,8 @@ platform1 = StewartPlatform(0, r_B=25, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21
 platform2 = StewartPlatform(1, r_B=25, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, offset, 0])
 
 # Generate synchronized trajectories
-positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_trajectory(steps, dt, platform1, platform2)
-
+#positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_trajectory(steps, dt, platform1, platform2)
+positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_orientation_test_trajectory(steps, dt, platform1, platform2)
 
 time = np.linspace(0, steps * dt, steps)
 

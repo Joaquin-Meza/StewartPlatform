@@ -6,7 +6,7 @@ from PlatformTrajectory import PlatformTrajectory
 import json
 
 
-def connect_to_arduino(port=None, baudrate=250000):
+def connect_to_arduino(port=None, baudrate=9600):
     arduino = None  # Placeholder for the serial object
 
     if port is not None:    # Only initialize if a port is provided
@@ -133,7 +133,8 @@ def menu(platform1, platform2, positions1, orientations1, positions2, orientatio
                     steps=steps,
                     dt=dt,
                     update_interval=5,  # Update visualization every 5 steps
-                    arduino=arduino
+                    arduino=arduino,
+                    ideal_simulation=0
                 )
 
             elif choice == '4':
@@ -179,7 +180,8 @@ def menu(platform1, platform2, positions1, orientations1, positions2, orientatio
 
 
 # Initialize trajectory generator
-trajectory_generator = PlatformTrajectory(v_apoyo=50, v_oscilacion=10, z_max=50, theta_max=15,y_max=10, roll_max=5, pitch_max=5, T=5, num_cycles=3)
+#trajectory_generator = PlatformTrajectory(v_apoyo=50, v_oscilacion=10, z_max=50, theta_max=15,y_max=10, roll_max=5, pitch_max=5, T=5, num_cycles=3)
+trajectory_generator = PlatformTrajectory(v_apoyo=50, v_oscilacion=20, z_max=50, theta_max=0.5, y_max=10, roll_max=5, pitch_max=10, T=3, num_cycles=1)
 
 # Simulation parameters
 dt = 0.1  # Time step
@@ -190,13 +192,13 @@ steps = int(expected_time / dt)  # Total steps
 offset = 25  # Distance between the two platforms along the Y-axis
 # Create object instances for two platforms
 
-platform1 = StewartPlatform(0, r_B=25, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, -offset, 0])
-platform2 = StewartPlatform(1, r_B=25, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, offset, 0])
+platform1 = StewartPlatform(0, r_B=20, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, -offset, 0])
+platform2 = StewartPlatform(1, r_B=20, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, offset, 0])
 
 # Generate synchronized trajectories
-positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_trajectory(steps, dt, platform1, platform2)
-
-
+#positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_trajectory(steps, dt, platform1, platform2)
+positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_orientation_test_trajectory(steps, dt, platform1, platform2)
+orientations2 = orientations1
 positions1[:, 1] -= offset  # Left platform (negative Y direction)
 positions2[:, 1] += offset  # Right platform (positive Y direction)
 

@@ -18,16 +18,19 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
     :param microcontroller:
     :return:
     """
-    log = {
-        'time_1': [],
-        'desired_lengths_1': [],
-        'current_lengths_1': [],
-        'control_signals_1': [],
-        'time_2': [],
-        'desired_lengths_2': [],
-        'current_lengths_2': [],
-        'control_signals_2': []
+    log_1 = {
+        'time': [],
+        'desired_lengths': [],
+        'current_lengths': [],
+        'control_signals': []
     }
+    log_2 = {
+        'time': [],
+        'desired_lengths': [],
+        'current_lengths': [],
+        'control_signals': []
+    }
+
 
     # Set up the figure and 3D axes for visualization
     fig = plt.figure()
@@ -36,7 +39,7 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
     if arduino != None:
         # Command arduino to go home configuration
         arduino.flushInput()  # Ensure buffer is clean
-        arduino.write(b'HOME\n')  # Send home command
+        #arduino.write(b'HOME\n')  # Send home command
         time.sleep(0.500)  # Allow arduino to process (seconds)
 
         # Retrieve the current position of the actuators
@@ -88,7 +91,7 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
                 if platform1.controller_type =='DSTA' and platform2.controller_type == 'DSTA':
                     control_signals1[i] = platform1.dsta_controllers[i].derivative(errors_1[i])
                     control_signals2[i] = platform2.dsta_controllers[i].derivative(errors_2[i])
-
+            print(f"Actuators CONTROL: P1[{control_signals1}], P2 [{control_signals2}]")
             control_signals1 = [round(control_bounds(x), 0) for x in control_signals1]
             control_signals2 = [round(control_bounds(x), 0) for x in control_signals2]
 
@@ -100,13 +103,13 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
                     arduino.write(control_string.encode('utf-8'))
 
                     print(f"Sending command: {control_string}")     # Debug line - Show what is being sent
-                    time.sleep(0.05)
+                    time.sleep(1)
                     try:
                         # Debug check if Arduino has data available
                         # Time out for serial read to prevent indefinite waiting
                         start_time = time.time()
                         while arduino.in_waiting == 0:
-                            if time.time() - start_time > 2:    # Wait after 2 seconds
+                            if time.time() - start_time > 5:    # Wait after 2 seconds
                                 print("Timeout waiting for Arduino response")
                                 break
                         # Read actuator feedback from Arduino
@@ -132,24 +135,25 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
                 print("Simulation without real time feedback")
                 # Apply control signals to actuators
                 # Update the current actuator lengths (emulating actuator responses)
-                platform1.current_lengths += control_signals1 * dt
+                platform1.current_lengths += (control_signals1 * dt)
                 platform1.current_lengths = np.clip(platform1.current_lengths, platform1.min_length, platform1.max_length)
 
-                platform2.current_lengths += control_signals2 * dt
+                platform2.current_lengths += (control_signals2 * dt)
                 platform2.current_lengths = np.clip(platform2.current_lengths, platform2.min_length, platform2.max_length)
 
             # Log the results
-            log['time_1'].append(step*platform1.dt)
-            log['desired_lengths_1'].append(desired_lengths1.copy())
-            log['current_lengths_1'].append(platform1.current_lengths.copy())
-            log['control_signals_1'].append(control_signals1.copy())
-            log['time_2'].append(step * platform2.dt)
-            log['desired_lengths_2'].append(desired_lengths2.copy())
-            log['current_lengths_2'].append(platform2.current_lengths.copy())
-            log['control_signals_2'].append(control_signals2.copy())
+            log_1['time'].append(step*platform1.dt)
+            log_1['desired_lengths'].append(desired_lengths1.copy())
+            log_1['current_lengths'].append(platform1.current_lengths.copy())
+            log_1['control_signals'].append(control_signals1.copy())
+            log_2['time'].append(step * platform2.dt)
+            log_2['desired_lengths'].append(desired_lengths2.copy())
+            log_2['current_lengths'].append(platform2.current_lengths.copy())
+            log_2['control_signals'].append(control_signals2.copy())
 
 
             # Update the visualization every `update_interval` steps
+            """
             if step % update_interval == 0:
                 ax.clear()
                 platform1.visualize_platform2(position1, orientation1, ax)
@@ -161,7 +165,11 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
                 ax.set_ylabel('Y')
                 ax.set_zlabel('Z')
 
-                plt.pause(0.1)
+            plt.pause(0.1)"""
+
+            # Wait for user confirmation in terminal
+            arduino.write(b'STOP\n')
+            input("Press Enter to proceed to the next movement...")
 
             if emergency_stop_triggered:
                 print("Emergency Stop Triggered! Stopping actuator...")
@@ -171,6 +179,11 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
         plt.show()
         # Stop actuators movement - Send control signals to 0
         arduino.write(b'STOP\n')
+        # Plot platform performance
+        platform1.plot_actuator_response(log_1)
+        platform2.plot_actuator_response(log_2)
+        #platform1.plot_actuator_rmse()
+        #platform2.plot_actuator_rmse()
     except KeyboardInterrupt:
         print("\nEmergency stop triggered! Stopping actuators...")
         emergency_stop_triggered = True
@@ -191,7 +204,7 @@ def test_Actuator(platform, actuator, controller, steps, dt=0.1, arduino=None, u
         Function to test actuator with real-time feedback visualization
 
         Parameters:
-        platform: StewartPlatform instance controlling the actuator
+        platform: StewartPlatform instance controlling the linear actuator's
         actuator: Actuator index(0-5)
         controller: 'PID' or 'DSTA' for control method
         steps: Number of steps in the test
@@ -211,7 +224,7 @@ def test_Actuator(platform, actuator, controller, steps, dt=0.1, arduino=None, u
     # Define sinusoidal test trajectory
     T = 5  # Duration of test (seconds)
     t = np.linspace(0, T, steps)
-    trajectory = 5 * np.cos(2 * np.pi * t / T)  # Cosine wave motion
+    trajectory = 2 * np.cos(2 * np.pi * t / T)+5  # Cosine wave motion
 
     time.sleep(0.5)
     try:
@@ -240,7 +253,7 @@ def test_Actuator(platform, actuator, controller, steps, dt=0.1, arduino=None, u
             # Send control signal and receive feedback
             try:
                 # Send control command in forma: "ACTUATOR_TEST, <platform_index>,<actuator_index>,<control_signal>"
-                control = round(control_bounds(control), 0)
+                #control = round(control_bounds(control), 0)
                 control_str = f"ACTUATOR_TEST,{platform.platform_id},{actuator},{control}\n"
 
 
