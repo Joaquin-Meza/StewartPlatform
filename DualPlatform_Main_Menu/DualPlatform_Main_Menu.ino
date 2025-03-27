@@ -6,7 +6,7 @@
 #define NUM_PLATFORMS 2  // Number of Stewart platforms
 #define EMERGENCY_STOP_PIN 2  // Pin for emergency stop button
 
-
+// --------VARIABLES --------------------
 volatile bool emergencyStop = false;  // Flag to indicate emergency stop
 
 // Define motor control pins for two platforms
@@ -53,7 +53,13 @@ void setup() {
 void loop() {
      if (emergencyStop) {
         stopActuators();
-        while(1);
+        while(1); // Lock system
     }
-    mainLoop();
+    // Handle structured serial commands (HOME, TEST, POSITION, ACTUATOR_TEST)
+    if (Serial.available()){
+      mainLoop();         // Handle full-line commands
+    }
+    // Continously check for incoming control values and apply them
+    parseAndApplyLengths(); 
+    
 }

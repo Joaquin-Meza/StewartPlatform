@@ -47,6 +47,7 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
         print("Requiring actuator positions...")
         time.sleep(1)
         feedback = arduino.readline().decode('utf-8', errors='ignore').strip()
+        print("RECEIVED: ", feedback)
         if feedback:
             try:
                 feedback_values = np.array([float(val) for val in feedback.split(',')])
@@ -100,6 +101,7 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
                 try:
                     # Send control signals to Arduino
                     control_string = "TEST," +','.join(f'{int(signal)}' for signal in np.concatenate((control_signals1, control_signals2))) + '\n'
+                    #control_string = "CTRL," +','.join(f'{int(signal)}' for signal in np.concatenate((control_signals1, control_signals2))) + '\n'
                     arduino.write(control_string.encode('utf-8'))
 
                     print(f"Sending command: {control_string}")     # Debug line - Show what is being sent

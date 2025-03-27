@@ -6,7 +6,7 @@ from PlatformTrajectory import PlatformTrajectory
 import json
 
 
-def connect_to_arduino(port=None, baudrate=9600):
+def connect_to_arduino(port=None, baudrate=250000):
     arduino = None  # Placeholder for the serial object
 
     if port is not None:    # Only initialize if a port is provided
@@ -119,9 +119,10 @@ def menu(platform1, platform2, positions1, orientations1, positions2, orientatio
                 print("Current actuator positions: ", response)
 
             elif choice == '3':
-                #arduino.write(b'TEST\n')
                 print("Starting experiment...")
                 time.sleep(1)
+                #arduino.write(b'TEST\n')
+
                 # Simulate the dual platforms
                 simulate_dual_platforms(
                     platform1=platform1,
@@ -207,4 +208,4 @@ dt = 0.05
 steps = len(positions1)  # Ensure steps match the trajectory length
 
 # Begin main loop
-menu(platform1, platform2, positions1, orientations1, positions2, orientations2, steps, dt=0.1, serial_port='COM5')
+menu(platform1, platform2, positions1, orientations1, positions2, orientations2, steps, dt=0.1, serial_port='COM7')

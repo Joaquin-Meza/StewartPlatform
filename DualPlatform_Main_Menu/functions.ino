@@ -154,16 +154,13 @@ void moveToHomePosition() {
 }
 
 //--------------------------------------------------------------
-void parseAndApplyLengths(){
+void parseAndApplyLengths_v1(){
+  
   if (emergencyStop){
     stopActuators();
     return;
   }
-  cnt_com+=1;
-  if (cnt_com >= threshold_cnt) {
-    cnt_com = threshold_cnt;
-    stopActuators();
-  }
+ 
   if (Serial.available()){
     // Read the incoming data and retrieve the control data
     cnt_com = 0;
@@ -191,6 +188,44 @@ void parseAndApplyLengths(){
 
     // Send current position of each actuator
     sendActuatorFeedback();
+    }
+  }
+}
+//--------------------------------------------------------------
+void parseAndApplyLengths(){
+  if (emergencyStop){
+    stopActuators();
+    return;
+  }
+
+  if (Serial.available()){
+    String receivedData = Serial.readStringUntil('\n');
+    receivedData.trim();
+
+    // Skip anything not starting with "CTRL,"
+    if(!receivedData.startsWith("CTRL,")) return;
+
+    receivedData.remove(0,5);   // Remove the prefix "CTRL,"
+    int valueIndex = 0;
+    char *token = strtok((char*)receivedData.c_str(),",");
+
+    while (token != NULL && valueIndex < NUM_PLATFORMS*NUM_ACTUATORS){
+      int platform = valueIndex / NUM_ACTUATORS;
+      int actuator = valueIndex % NUM_ACTUATORS;
+      receivedValues[platform][actuator] = atoi(token);
+      valueIndex++;
+      token = strtok(NULL,",");
+    }
+
+    if(valueIndex == NUM_PLATFORMS*NUM_ACTUATORS){
+      for(int p=0; p<NUM_PLATFORMS;p++){
+        for(int i = 0; i < NUM_ACTUATORS;i++){
+          actuatorControl[p][i] = receivedValues[p][i];
+          pwmWrite(actuatorControl[p][i],DIR_A[p][i],DIR_B[p][i]);
+          updatePositionMeasurement(p,i);
+        }
+      }
+      sendActuatorFeedback();
     }
   }
 }
@@ -290,7 +325,7 @@ void mainLoop(){
       Serial.println("Emergency stop activated");
     }
     else if(receivedData == "TEST"){
-      Serial.println("Running simulation");
+      //Serial.println("Running simulation");
       parseAndApplyLengths();
     }
     else if(receivedData.startsWith("ACTUATOR_TEST")){
