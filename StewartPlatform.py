@@ -7,9 +7,9 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
 class StewartPlatform:
-    def __init__(self, id, r_B, r_P, gamma_B_deg, gamma_P_deg, serial_port=None, control_parameters=None, dt=0.01, controller_type="PID", base_offset=None, home_position=None,home_orientation=None):
+    def __init__(self, ID, r_B, r_P, gamma_B_deg, gamma_P_deg, serial_port=None, dt=0.01, controller_type="PID", base_offset=None, home_position=None, home_orientation=None):
 
-        self.platform_id = id
+        self.platform_id = ID
         self.dt = dt
         self.controller_type = controller_type  # "PID" or "DSTA"
         self.kp = [100, 100, 100, 100, 100, 100]    # Individual Proportional gains for each motor
@@ -31,7 +31,7 @@ class StewartPlatform:
             self.home_orientation = np.array(home_orientation)
         #home_lengths = self.inverse_kinematics(self.home_position, self.home_orientation)
         self.min_length = self.home_position[2]+2
-        self.max_length = 70
+        self.max_length = 30
 
         if self.serial_port:
             time.sleep(3)  # Wait for the serial connection to establish
@@ -90,15 +90,36 @@ class StewartPlatform:
             3 * pi / 3 + gamma_P,
             5 * pi / 3 - gamma_P
         ])
+
+
         # Calculate the Cartesian coordinates of the anchor points
-        self.base_points = r_B*np.array([
+        base_ = r_B*np.array([
             [np.cos(psi_B[i]), np.sin(psi_B[i]), 0] for i in range(6)
-        ]) + self.base_offset   # Apply base offset
-        self.platform_points = r_P * np.array([
+        ])
+        platform_ = r_P * np.array([
             [np.cos(psi_P[i]), np.sin(psi_P[i]), 0] for i in range(6)
         ])
 
+        # Reorder anchors to match physical platform layout
+        base_order = [0, 5, 4, 3, 2, 1]     # Update according to actual wiring
+        platform_order = [0, 5, 4, 3, 2, 1]
 
+        self.base_points = base_[base_order]+self.base_offset       # Apply base offset
+        self.platform_points = platform_[platform_order]
+
+    def remap_anchor_order(self, base_remap = None, platform_remap = None):
+        if base_remap is not None:
+            self.base_points = self.base_points[base_remap]
+        if platform_remap is not None:
+            self.platform_points = self.platform_points[platform_remap]
+
+    def mirror_axis(self,axis):
+        if axis == 'y':
+            self.base_points[:, 1] *= -1
+            self.platform_points[:, 1] *= -1
+        elif axis == 'x':
+            self.base_points[:, 0] *= -1
+            self.platform_points[:, 0] *= -1
     def rotation_matrix(self, euler_angles):
         """ Generate a rotation matrix taking as input Euler angles (roll,pitch, yaw)"""
         roll, pitch, yaw = euler_angles
@@ -137,8 +158,7 @@ class StewartPlatform:
         # Convert from simulation (40 cm min) to encoder readings (0 cm min)
         # Enforce actuator constraints
         lengths = np.clip(lengths, self.min_length, self.max_length)    # Keep within actuator limits
-        #           y = (x-40)+5
-        lengths = lengths-0     # Scale to 0 - 30 range
+        lengths = lengths-0     # Scale to 0 - 30 range     # This line have been making errors if we delete the substracting
         return lengths
     
 
@@ -215,6 +235,7 @@ class StewartPlatform:
         R = self.rotation_matrix(orientation)
         P_global = np.array([R @ p + position for p in self.platform_points])
 
+        # Plot base and platform points
         ax.scatter(self.base_points[:, 0], self.base_points[:, 1], self.base_points[:, 2], c='red', label='Base Points')
         ax.scatter(P_global[:, 0], P_global[:, 1], P_global[:, 2], c='blue', label='Platform Points')
         # Draw legs connecting base and platform
@@ -222,6 +243,8 @@ class StewartPlatform:
             ax.plot([self.base_points[i, 0], P_global[i, 0]],
                     [self.base_points[i, 1], P_global[i, 1]],
                     [self.base_points[i, 2], P_global[i, 2]], 'k--')
+            ax.text(self.base_points[i, 0], self.base_points[i, 1], self.base_points[i, 2], f'{i}', color='red',fontsize=10, weight='bold')
+
 
         # Define polygons for base and platform planes
         base_plane = Poly3DCollection([self.base_points[:, :3]], alpha=0.3, color='green')
@@ -262,6 +285,7 @@ class StewartPlatform:
             ax.plot([self.base_points[i, 0], P_global[i, 0]],
                     [self.base_points[i, 1], P_global[i, 1]],
                     [self.base_points[i, 2], P_global[i, 2]], 'k--')
+            ax.text(self.base_points[i, 0], self.base_points[i, 1], self.base_points[i, 2], f'{i+1}', color='red', fontsize=10, weight='bold')
 
         # Define polygons for base and platform planes
         base_plane = Poly3DCollection([self.base_points[:, :3]], alpha=0.3, color='green')
@@ -578,11 +602,11 @@ class StewartPlatform:
                 self.current_lengths = np.clip(self.current_lengths, self.min_length, self.max_length)
 
             # Update visualization
-            #if step % 5 == 0:
-                #print(f"Step {step}: Desired Position: {position}, Orientation: {orientation}")
-                #self.visualize_platform(position, orientation, ax)
+            if step % 5 == 0:
+                print(f"Step {step}: Desired Position: {position}, Orientation: {orientation}")
+                self.visualize_platform(position, orientation, ax)
 
-            #plt.draw()
+            plt.draw()
             # Log data for plotting
             self.log['time'].append(step*self.dt)
             self.log['desired_lengths'].append(desired_lengths.copy())

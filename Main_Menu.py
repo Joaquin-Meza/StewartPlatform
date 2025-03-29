@@ -133,7 +133,7 @@ def menu(platform1, platform2, positions1, orientations1, positions2, orientatio
                     orientations2=orientations2,
                     steps=steps,
                     dt=dt,
-                    update_interval=5,  # Update visualization every 5 steps
+                    update_interval=1,  # Update visualization every 5 steps
                     arduino=arduino,
                     ideal_simulation=0
                 )
@@ -162,11 +162,10 @@ def menu(platform1, platform2, positions1, orientations1, positions2, orientatio
                     selected_platform = platform1 if platform_idx==0 else platform2
 
                     # Call the actuator test function
-                    test_Actuator(selected_platform, actuator_idx, controller_type, steps, dt=0.1,arduino=arduino)
+                    test_Actuator(selected_platform, actuator_idx, controller_type, steps, dt=0.1, arduino=arduino)
 
                 except ValueError:
                     print("Invalid input. Please enter numbers only.")
-
             elif choice == '6':
                 print("Exiting...")
                 break
@@ -193,19 +192,20 @@ steps = int(expected_time / dt)  # Total steps
 offset = 25  # Distance between the two platforms along the Y-axis
 # Create object instances for two platforms
 
-platform1 = StewartPlatform(0, r_B=20, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, -offset, 0])
-platform2 = StewartPlatform(1, r_B=20, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, offset, 0])
-
+platform1 = StewartPlatform(0, r_B=20, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, -offset, 0])     # Right platform
+platform2 = StewartPlatform(1, r_B=20, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, offset, 0])      # Left platform
+#platform1.mirror_axis('x')
+#platform2.mirror_axis('x')
 # Generate synchronized trajectories
-#positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_trajectory(steps, dt, platform1, platform2)
-positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_orientation_test_trajectory(steps, dt, platform1, platform2)
+positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_trajectory(steps, dt, platform1, platform2)
+#positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_orientation_test_trajectory(steps, dt, platform1, platform2)
 orientations2 = orientations1
 positions1[:, 1] -= offset  # Left platform (negative Y direction)
 positions2[:, 1] += offset  # Right platform (positive Y direction)
 
 # Parameters
-dt = 0.05
+dt = 0.5
 steps = len(positions1)  # Ensure steps match the trajectory length
 
 # Begin main loop
-menu(platform1, platform2, positions1, orientations1, positions2, orientations2, steps, dt=0.1, serial_port='COM7')
+menu(platform1, platform2, positions1, orientations1, positions2, orientations2, steps, dt=0.1, serial_port='COM5')

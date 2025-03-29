@@ -20,8 +20,8 @@ platform1 = StewartPlatform(0, r_B=25, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21
 platform2 = StewartPlatform(1, r_B=25, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, offset, 0])
 
 # Generate synchronized trajectories
-#positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_trajectory(steps, dt, platform1, platform2)
-positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_orientation_test_trajectory(steps, dt, platform1, platform2)
+positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_trajectory2(steps, dt, platform1, platform2)
+#positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_orientation_test_trajectory(steps, dt, platform1, platform2)
 
 time = np.linspace(0, steps * dt, steps)
 
@@ -29,11 +29,11 @@ time = np.linspace(0, steps * dt, steps)
 fig, axs = plt.subplots(3, 1, figsize=(10, 12))
 
 # Plot X positions
-axs[0].plot(time, positions1[:, 0], label='Platform 1 - X')
-axs[0].plot(time, positions2[:, 0], label='Platform 2 - X', linestyle='--')
-axs[0].set_title('X Position of Platforms')
+axs[0].plot(time, positions1[:, 1], label='Platform 1 - Y')
+axs[0].plot(time, positions2[:, 1], label='Platform 2 - Y', linestyle='--')
+axs[0].set_title('Y Position of Platforms')
 axs[0].set_xlabel('Time (s)')
-axs[0].set_ylabel('X Position (cm)')
+axs[0].set_ylabel('Y Position (cm)')
 axs[0].legend()
 axs[0].grid()
 
@@ -46,12 +46,12 @@ axs[1].set_ylabel('Z Position (cm)')
 axs[1].legend()
 axs[1].grid()
 
-# Plot Yaw (Theta)
-axs[2].plot(time, orientations1[:, 1], label='Platform 1 - Pitch (Theta)')
-axs[2].plot(time, orientations2[:, 1], label='Platform 2 - Pitch (Theta)', linestyle='--')
-axs[2].set_title('Pitch (Theta) of Platforms')
+# Plot X positions
+axs[2].plot(time, positions1[:, 0], label='Platform 1 - X')
+axs[2].plot(time, positions2[:, 0], label='Platform 2 - X', linestyle='--')
+axs[2].set_title('X Position of Platforms')
 axs[2].set_xlabel('Time (s)')
-axs[2].set_ylabel('Pitch (degrees)')
+axs[2].set_ylabel('X Position (cm)')
 axs[2].legend()
 axs[2].grid()
 

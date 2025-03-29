@@ -39,7 +39,7 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
     if arduino != None:
         # Command arduino to go home configuration
         arduino.flushInput()  # Ensure buffer is clean
-        #arduino.write(b'HOME\n')  # Send home command
+        arduino.write(b'HOME\n')  # Send home command
         time.sleep(0.500)  # Allow arduino to process (seconds)
 
         # Retrieve the current position of the actuators
@@ -55,6 +55,7 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
                 platform2.current_lengths = feedback_values[6:]
             except ValueError:
                 print("Warning: Invalid feedback received", feedback)
+        arduino.flushInput()
 
 
     # Initialize actuator lengths at home position
@@ -62,7 +63,6 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
     platform2.current_lengths = platform2.inverse_kinematics(platform2.home_position, platform2.home_orientation)
     try:
         emergency_stop_triggered = False    # Initialize emergency stop flag
-        arduino.flushInput()
 
         # Simulation loop
         for step in range(steps):
@@ -133,6 +133,7 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
                         print(f"Serial communication error: {e}")
                 except Exception as e:
                     print(f"Serial communication error: {e}")
+
             else:
                 print("Simulation without real time feedback")
                 # Apply control signals to actuators
@@ -144,7 +145,7 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
                 platform2.current_lengths = np.clip(platform2.current_lengths, platform2.min_length, platform2.max_length)
 
             # Log the results
-            log_1['time'].append(step*platform1.dt)
+            log_1['time'].append(step * platform1.dt)
             log_1['desired_lengths'].append(desired_lengths1.copy())
             log_1['current_lengths'].append(platform1.current_lengths.copy())
             log_1['control_signals'].append(control_signals1.copy())
@@ -153,9 +154,8 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
             log_2['current_lengths'].append(platform2.current_lengths.copy())
             log_2['control_signals'].append(control_signals2.copy())
 
-
             # Update the visualization every `update_interval` steps
-            """
+
             if step % update_interval == 0:
                 ax.clear()
                 platform1.visualize_platform2(position1, orientation1, ax)
@@ -167,11 +167,11 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
                 ax.set_ylabel('Y')
                 ax.set_zlabel('Z')
 
-            plt.pause(0.1)"""
+            plt.pause(0.1)
 
             # Wait for user confirmation in terminal
             arduino.write(b'STOP\n')
-            input("Press Enter to proceed to the next movement...")
+            #input("Press Enter to proceed to the next movement...")
 
             if emergency_stop_triggered:
                 print("Emergency Stop Triggered! Stopping actuator...")
@@ -184,8 +184,8 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
         # Plot platform performance
         platform1.plot_actuator_response(log_1)
         platform2.plot_actuator_response(log_2)
-        #platform1.plot_actuator_rmse()
-        #platform2.plot_actuator_rmse()
+        #platform1.plot_actuator_rmse(log_1)
+        #platform2.plot_actuator_rmse(log_2)
     except KeyboardInterrupt:
         print("\nEmergency stop triggered! Stopping actuators...")
         emergency_stop_triggered = True
@@ -330,3 +330,88 @@ def test_Actuator(platform, actuator, controller, steps, dt=0.1, arduino=None, u
         if arduino:
             arduino.write(b"EMERGENCY_STOP\n")      # Send Stop command to arduino
         time.sleep(1)
+
+
+def go2setpoint(platform1, platform2, positions1, orientations1, positions2, orientations2, dt=0.1, arduino=None, max_iterations=200, threshold=0.2, ideal_simulation=0):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Compute target actuator lengths
+    desired_lengths1 = platform1.inverse_kinematics(positions1, orientations1)
+    desired_lengths2 = platform2.inverse_kinematics(positions2, orientations2)
+
+    if arduino:
+        arduino.flushInput()
+        arduino.write(b'POSITION\n')
+        time.sleep(1)
+        feedback = arduino.readline().decode('utf-8',errors='ignore').strip()
+        if feedback:
+            try:
+                values = np.array([float(val) for val in feedback.split(',')])
+                platform1.current_lengths = values[:6]
+                platform2.current_lengths = values[6:]
+            except:
+                print("Invalid feedback format")
+        else:
+            print("No initial feedback received.")
+        arduino.flushInput()
+    else:
+        platform1.current_lengths = platform1.inverse_kinematics(platform1.home_position, platform1.home_orientation)
+        platform2.current_lengths = platform2.inverse_kinematics(platform2.home_position, platform2.home_orientation)
+
+    for iteration in range(max_iterations):
+        errors1 = desired_lengths1 - platform1.current_lengths
+        errors2 = desired_lengths2 - platform2.current_lengths
+
+        if np.all(np.abs(errors1)<threshold) and np.all(np.abs(errors2)<threshold):
+            print("Target reached within threshold.")
+            break
+
+        control_signals1 = np.zeros(6)
+        control_signals2 = np.zeros(6)
+
+        for i in range(6):
+            if platform1.controller_type == 'PID':
+                control_signals1[i] = platform1.pid_control(desired_lengths1[i], i)
+                control_signals2[i] = platform2.pid_control(desired_lengths2[i], i)
+            elif platform1.controller_type == 'DSTA':
+                control_signals1[i] = platform1.dsta_controllers[i].derivative(errors1[i])
+                control_signals2[i] = platform2.dsta_controllers[i].derivative(errors2[i])
+
+        control_signals1 = [round(control_bounds(x), 0) for x in control_signals1]
+        control_signals2 = [round(control_bounds(x), 0) for x in control_signals2]
+
+        if ideal_simulation:
+            platform1.current_lengths += np.array(control_signals1) * dt
+            platform2.current_lengths += np.array(control_signals2) * dt
+            platform1.current_lengths = np.clip(platform1.current_lengths, platform1.min_length, platform1.max_length)
+            platform2.current_lengths = np.clip(platform2.current_lengths, platform2.min_length, platform2.max_length)
+        else:
+            try:
+                control_string = "TEST," + ','.join(str(int(x)) for x in control_signals1 + control_signals2) + '\n'
+                arduino.write(control_string.encode('utf-8'))
+                print(f"Sending: {control_string.strip()}")
+                time.sleep(0.5)
+
+                start_time = time.time()
+                while arduino.in_waiting == 0:
+                    if time.time() - start_time > 5:
+                        print("Timeout waiting for Arduino feedback.")
+                        break
+
+                feedback = arduino.readline().decode('utf-8', errors='ignore').strip()
+                if feedback:
+                    values = np.array([float(val) for val in feedback.split(',')])
+                    platform1.current_lengths = values[:6]
+                    platform2.current_lengths = values[6:]
+                    print("Updated lengths.")
+                else:
+                    print("No feedback received.")
+            except Exception as e:
+                print("Serial error:", e)
+
+        time.sleep(dt)
+
+        print("Finished go2setpoint() execution.")
+
+

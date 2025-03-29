@@ -1,3 +1,4 @@
+// CORRECTED CODE
 //__________________________________________________________________________
 //__________________ General Setup _________________________________________
 //__________________________________________________________________________
@@ -6,21 +7,26 @@
 #define NUM_PLATFORMS 2  // Number of Stewart platforms
 #define EMERGENCY_STOP_PIN 2  // Pin for emergency stop button
 
-// --------VARIABLES --------------------
+
 volatile bool emergencyStop = false;  // Flag to indicate emergency stop
 
 // Define motor control pins for two platforms
 const int DIR_A[NUM_PLATFORMS][NUM_ACTUATORS] = {
-    {30, 33, 35, 36, 38, 40}, // Platform 1
+    {30, 32, 34, 36, 38, 40}, // Platform 1
     {42, 44, 46, 48, 50, 52}  // Platform 2
 };
 const int DIR_B[NUM_PLATFORMS][NUM_ACTUATORS] = {
-    {31, 32, 34, 37, 39, 41},
+    {31, 33, 35, 37, 39, 41},
     {43, 45, 47, 49, 51, 53}
 };
+
+// The cables are connected in the reverse order
+// 0  1  2 3 4 5   6 7 8 9 10 11 
+// 11 10 9 8 7 6   5 4 3 2 1  0
+
 const int POT[NUM_PLATFORMS][NUM_ACTUATORS] = {
-    {A0, A1, A2, A3, A4, A5},
-    {A6, A7, A8, A9, A10, A11}
+    {A11, A10, A9, A8, A7, A6},
+    {A5, A4, A3, A2, A1, A0}
 };
 
 
@@ -47,19 +53,16 @@ void setup() {
         }
     }
     //moveToHomePosition();
-    Serial.println("Arduino Ready to work");
+    //Serial.println("Arduino Ready to work");
+    Serial.flush();
 }
 
 void loop() {
      if (emergencyStop) {
         stopActuators();
-        while(1); // Lock system
+        while(1);
     }
-    // Handle structured serial commands (HOME, TEST, POSITION, ACTUATOR_TEST)
-    if (Serial.available()){
-      mainLoop();         // Handle full-line commands
-    }
-    // Continously check for incoming control values and apply them
-    parseAndApplyLengths(); 
-    
+    Serial.flush();
+    mainLoop();
+    Serial.flush();
 }

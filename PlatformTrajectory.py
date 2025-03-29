@@ -63,10 +63,10 @@ class PlatformTrajectory:
         max_length2 = min_length2 + 20
 
 
-        # Define the stepping pattern
-        X = 20 * np.sin(2 * np.pi * t / self.T) * smooth_factor  # Forward-backward sinusoidal motion in X (-40 to 40 cm)
+        # Define the stepping pattern  - Change X and Y positions
+        Y = 20 * np.sin(2 * np.pi * t / self.T) * smooth_factor  # Forward-backward sinusoidal motion in X (-40 to 40 cm)
         Z = self.min_length + (self.z_max-self.min_length)*(1-np.cos(2*np.pi*t/self.T))/2 -40 # Vertical oscillation in Z
-        Y = np.zeros_like(X)  # No movement in Y
+        X = np.zeros_like(Y)  # No movement in Y
 
 
         # Orientation (pitch only)
@@ -79,10 +79,10 @@ class PlatformTrajectory:
         Roll = np.zeros_like(Pitch)  # No roll
         Yaw = np.zeros_like(Pitch)  # No Yaw
         # Generate the second platform trajectory with a half-phase shift
-        X2 = np.roll(X, steps // 2)
+        Y2 = np.roll(X, steps // 2)
         Z2 = np.roll(Z, steps // 2)
 
-        Y2 = np.zeros_like(X2)
+        X2 = np.zeros_like(Y2)
         Pitch2 = np.roll(Pitch, steps // 2)
 
         # Combine positions and orientations for both platforms
@@ -97,54 +97,40 @@ class PlatformTrajectory:
         # Time vector for the trajectory
         t = np.linspace(0, self.T * self.num_cycles, steps)
 
-        # Apply a smoothing function to avoid abrupt transitions between cycles
-        smooth_factor = 0.5 * (1 - np.cos(2 * np.pi * t / self.T))  # Smooth start and end of each cycle
+        # Trajectory parameters
+        stride_length = 20          # Total travel in Y (cm)
+        lift_height = 5             # Vertical Z-lift when stepping (cm)
+        base_z1 = stewart_platform1.home_position[2]
+        base_z2 = stewart_platform2.home_position[2]
 
-        # Compute min and max actuator lengths for each platform
-        home_lengths1 = stewart_platform1.inverse_kinematics(stewart_platform1.home_position,
-                                                             stewart_platform1.home_orientation)
-        home_lengths2 = stewart_platform2.inverse_kinematics(stewart_platform2.home_position,
-                                                             stewart_platform2.home_orientation)
+        # Smooth sinusoidal stepping pattern
+        smooth_forward = stride_length * 0.5 * (1-np.cos(2*np.pi*t/self.T))     # Forward walk, smoothed
+        lift_pattern = lift_height*np.sin(np.pi*t/self.T)**2                    # Step lifting profile (0 to lift height)
 
-        min_length1 = np.min(home_lengths1) + 5
-        max_length1 = min_length1 + 20
-        min_length2 = np.min(home_lengths2) + 5
-        max_length2 = min_length2 + 20
+        # Platform 1: moves forward and lift
+        Y1 = (stride_length/2)*np.sin(2*np.pi*t/self.T)
+        Z1 = base_z1 + lift_pattern
 
-        # Define the stepping pattern with an arched trajectory
-        X = 40 * np.sin(2 * np.pi * t / self.T) * smooth_factor  # Forward-backward sinusoidal motion in X (-400 to 400 mm)
-        Z = self.min_length + (self.z_max - self.min_length) * (1 - np.cos(2 * np.pi * t / self.T)) / 2  # Arch-shaped motion in Z
-        Y = np.zeros_like(X)  # No movement in Y
+        # Platform 2: moves forward out-of-phase and lifts
+        Y2 = np.roll(Y1, steps//2)
+        Z2 = base_z2 + np.roll(lift_pattern, steps//2)
 
-        # Generate a pitch angle pattern resembling ankle motion
-        Pitch = self.theta_max * np.cos(2 * np.pi * t / self.T) * smooth_factor  # Adjust frequency for realistic motion
-        Pitch = np.clip(Pitch, -20, 15)  # Limit pitch between -20 and 15 degrees to prevent excessive tilting
+        # No lateral motion
+        X1 = np.zeros_like(Y1)
+        X2 = np.zeros_like(Y2)
 
-        # Ensure the pitch movement remains continuous and smooth without abrupt jumps
-        Pitch = (Pitch+180) % 360-180
+        # No rotation
+        Roll1 = Pitch1 = Yaw1 = np.zeros_like(t)
+        Roll2 = Pitch2 = Yaw2 = np.zeros_like(t)
 
-        # Prevent discontinuities at cycle transitions
-        for i in range(len(t)):
-            if t[i] % self.T == 0:  # At the start of a new cycle
-                Pitch[i] = np.clip(Pitch[i], -20, 15)
-
-
-        Roll = np.zeros_like(Pitch)  # No roll
-        Yaw = np.zeros_like(Pitch)  # No yaw
-
-        # Generate the second platform trajectory with a half-phase shift
-        X2 = np.roll(X, steps // 2)
-        Z2 = np.roll(Z, steps // 2)
-        Y2 = np.zeros_like(X2)
-        Pitch2 = np.roll(Pitch, steps // 2)
-
-        # Combine positions and orientations for both platforms
-        positions1 = np.vstack([X, Y, Z]).T  # Positions: [X, Y, Z] for platform 1
-        orientations1 = np.vstack([Roll, Pitch, Yaw]).T  # Orientations: [roll, pitch, yaw] for platform 1
-        positions2 = np.vstack([X2, Y2, Z2]).T  # Positions: [X, Y, Z] for platform 2
-        orientations2 = np.vstack([Roll, Pitch2, Yaw]).T  # Orientations: [roll, pitch, yaw] for platform 2
-
+        # Combine into position and orientation arrays
+        positions1 = np.vstack([X1, Y1, Z1]).T
+        orientations1 = np.vstack([Roll1, Pitch1, Yaw1]).T
+        positions2 = np.vstack([X2, Y2, Z2]).T
+        orientations2 = np.vstack([Roll2, Pitch2, Yaw2]).T
         return positions1, orientations1, positions2, orientations2
+
+
 
     def generate_orientation_test_trajectory(self, steps, dt, stewart_platform1, stewart_platform2):
         """
@@ -179,10 +165,10 @@ class PlatformTrajectory:
         X = np.zeros_like(Roll)
         Y = np.zeros_like(Roll)
         base_z = stewart_platform1.home_position[2]
-        Z = np.ones_like(Roll)*base_z
+        Z = base_z + 5 * (np.sin(2 * np.pi * t / self.T))**2
 
         base_z2 = stewart_platform2.home_position[2]
-        Z2 = np.ones_like(Roll) * base_z2
+        Z2 = base_z2 + 5 * (np.sin(2 * np.pi * t / self.T))**2
 
         # Second platform: out of phase (180° shift)
         Roll2 = np.roll(Roll, steps // 2)
