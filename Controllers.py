@@ -15,10 +15,10 @@ class STA:
         #    out = 1
         return np.sign(value)
 
-    def derivative(self, variable):
+    def derivative(self, variable, integral_errors):
         """
         Implement the Super-Twisting Algorithm for sliding mode control
-        :param variable:
+        :param variable: is the error signal
         :return:
         """
         error = self.w1[-1] - variable      # Compute the error
@@ -44,21 +44,24 @@ class DSTA(STA):
         self.rho1 = rho1
         self.rho2 = rho2
 
-    def derivative(self, variable):
+    def derivative(self, variable, integral_error):
         """
         Implements the Discrete Super-Twisting Algorithm (DSTA) with damping.
         """
 
-        error = self.w1[-1] - variable  # Compute error
+        #error = self.w1[-1] - variable  # Compute error
 
-        w1_aux = self.rho1 * self.w1[-1] + self.tau * (self.w2[-1] - self.l1 * (np.sqrt(np.abs(error))) * np.sign(error))
-        w2_aux = self.rho2 * self.w2[-1] + self.tau * (-self.l2 * self.sign(error))
+        #w1_aux = self.rho1 * self.w1[-1] + self.tau * (self.w2[-1] - self.l1 * (np.sqrt(np.abs(error))) * np.sign(error))
+        #w2_aux = self.rho2 * self.w2[-1] + self.tau * (-self.l2 * self.sign(error))
 
         # Store new values
-        self.w1.append(w1_aux)
-        self.w2.append(w2_aux)
+        #self.w1.append(w1_aux)
+        #self.w2.append(w2_aux)
 
-        return w2_aux   # Return control signal
+
+        u = self.l1*np.sqrt(np.abs(variable))*self.sign(variable) + self.l2*integral_error
+
+        return u   # Return control signal
 
 
 def plot_log_data(filename):

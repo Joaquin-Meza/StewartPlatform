@@ -12,11 +12,13 @@ class StewartPlatform:
         self.platform_id = ID
         self.dt = dt
         self.controller_type = controller_type  # "PID" or "DSTA"
-        self.kp = [100, 100, 100, 100, 100, 100]    # Individual Proportional gains for each motor
-        self.ki = [50, 5, 5, 5, 5, 5]   # Individual Integral gains for each motor
-        self.kd = [80, 50, 0.5, 50, 50, 50]   # Individual Derivative gains for each motor
+        self.kp = [5000, 100, 100, 100, 100, 100]    # Individual Proportional gains for each motor
+        self.ki = [500, 5, 5, 5, 5, 5]   # Individual Integral gains for each motor
+        self.kd = [1000, 50, 0.5, 50, 50, 50]   # Individual Derivative gains for each motor
         self.previous_errors = np.zeros(6)
         self.integral_errors = np.zeros(6)      # To store cumulative errors for integral control
+        self.previous_errors_dsta = np.zeros(6)
+        self.integral_errors_dsta = np.zeros(6)  # To store cumulative errors for integral control
         self.current_lengths = np.zeros(6)
         self.serial_port = serial.Serial(serial_port, 250000) if serial_port else None
 
@@ -42,14 +44,13 @@ class StewartPlatform:
         self.base_offset = np.array(base_offset) if base_offset else np.array([0, 0, 0])  # Default is no offset
 
         self.dsta_controllers = [None]*6
-        # self.dsta_controllers = [DSTA(dt, 50, 100, 0.5, 0.5, w1=0.5, w2=0.9) for _ in range(6)]     # Initialize DSTA conrollers
-        # (tau, k1, k2, rho1, rho2, w1=0, w2=0)
-        self.dsta_controllers[0] = DSTA(dt, 50, 2500, 0.1, 0.905, w1=50, w2=70)
-        self.dsta_controllers[1] = DSTA(dt, 50, 2500, 0.1, 0.905, w1=50, w2=70)
-        self.dsta_controllers[2] = DSTA(dt, 50, 2500, 0.01, 0.905, w1=50, w2=70)
-        self.dsta_controllers[3] = DSTA(dt, 35, 2500, 0.01, 0.905, w1=5, w2=50)
-        self.dsta_controllers[4] = DSTA(dt, 35, 2500, 0.01, 0.905, w1=50, w2=70)
-        self.dsta_controllers[5] = DSTA(dt, 70, 2700, 0.09, 0.905, w1=50, w2=100)
+        # (tau, l1, l2, rho1, rho2, w1=0, w2=0)
+        self.dsta_controllers[0] = DSTA(dt, 200, 50, 0.09, 0.905, w1=150, w2=100)
+        self.dsta_controllers[1] = DSTA(dt, 200, 50, 0.09, 0.905, w1=150, w2=70)
+        self.dsta_controllers[2] = DSTA(dt, 200, 50, 0.01, 0.905, w1=50, w2=70)
+        self.dsta_controllers[3] = DSTA(dt, 350, 50, 0.01, 0.905, w1=50, w2=50)
+        self.dsta_controllers[4] = DSTA(dt, 350, 50, 0.01, 0.905, w1=50, w2=70)
+        self.dsta_controllers[5] = DSTA(dt, 350, 70, 0.09, 0.905, w1=50, w2=10)
 
 
         self.DefineConfiguration(r_B, r_P, gamma_B_deg, gamma_P_deg)
@@ -209,13 +210,14 @@ class StewartPlatform:
         """
         control_signals = np.zeros(6)
 
-        for i in range(6):
-            control_signals[i] = self.dsta_controllers[i].derivative(desired_lengths[i]-self.current_lengths[i])
 
-        # Clamp control signals within actuator limits
-        #new_lengths = self.current_lengths + control_signals * self.dt
-        #new_lengths = np.clip(new_lengths, self.min_length, self.max_length)
-        # new_lengths - self.current_lengths
+        for i in range(6):
+            error = desired_lengths[i]-self.current_lengths[i]
+            self.integral_errors_dsta[i] = error+self.dt + self.integral_errors_dsta[i]
+
+            # Compute control using DSTA controller
+            control_signals[i] = self.dsta_controllers[i].derivative(error, self.integral_errors_dsta[i])
+
         return control_signals
 
     def send_control_signal(self, control_signals):

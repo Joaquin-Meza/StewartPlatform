@@ -1,9 +1,10 @@
 import time
-from main2 import simulate_dual_platforms, test_Actuator
+from main2 import simulate_dual_platforms, test_Actuator, go2setpoint
 import serial
 from StewartPlatform import StewartPlatform
 from PlatformTrajectory import PlatformTrajectory
 import json
+import numpy as np
 
 
 def connect_to_arduino(port=None, baudrate=250000):
@@ -95,7 +96,8 @@ def menu(platform1, platform2, positions1, orientations1, positions2, orientatio
             print("3 - Run experiment")
             print("4 - Save log files")
             print("5 - Test Actuators")
-            print("6 - Exit")
+            print("6 - Go to set point")
+            print("7 - Exit")
 
             choice = input("Which action will be carried out?")
 
@@ -159,14 +161,24 @@ def menu(platform1, platform2, positions1, orientations1, positions2, orientatio
                         continue
 
                     # Select the correct object platform
-                    selected_platform = platform1 if platform_idx==0 else platform2
+                    selected_platform = platform1 if platform_idx == 0 else platform2
 
                     # Call the actuator test function
-                    test_Actuator(selected_platform, actuator_idx, controller_type, steps, dt=0.1, arduino=arduino)
+                    test_Actuator(selected_platform, actuator_idx, controller_type, steps_sim, dt=0.1, arduino=arduino)
 
                 except ValueError:
                     print("Invalid input. Please enter numbers only.")
             elif choice == '6':
+                print("Go to set point")
+                position1 = np.array(eval(input("Enter the desired Position for platform 1 as [x, y, z]: ")))
+                orientation1 = np.array(eval(input("Enter the desired Orientations for platform 1 as [roll, pitch, yaw]: ")))
+                position2 = np.array(eval(input("Enter the desired Position for platform 2 as [x, y, z]: ")))
+                orientation2 = np.array(eval(input("Enter the desired Orientations for platform 2 as [roll, pitch, yaw]: ")))
+                go2setpoint(platform1, platform2,
+                            positions1=position1, orientations1=orientation1,
+                            positions2=position2, orientations2=orientation2,
+                            arduino=arduino, dt=0.1, ideal_simulation=0)
+            elif choice == '7':
                 print("Exiting...")
                 break
             else:

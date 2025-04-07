@@ -436,6 +436,7 @@ void mainLoop(){
     else if(receivedData.startsWith("ACTUATOR_TEST")){
       //Serial.println("FUNCTION ACTUATOR TEST");
       testActuatorTrajectory(receivedData);
+      //Serial.println(receivedData);
       Serial.flush();
     }
     else{

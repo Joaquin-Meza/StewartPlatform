@@ -90,8 +90,11 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
                     control_signals1[i] = platform1.pid_control(desired_lengths1[i], i)
                     control_signals2[i] = platform2.pid_control(desired_lengths2[i], i)
                 if platform1.controller_type =='DSTA' and platform2.controller_type == 'DSTA':
-                    control_signals1[i] = platform1.dsta_controllers[i].derivative(errors_1[i])
-                    control_signals2[i] = platform2.dsta_controllers[i].derivative(errors_2[i])
+                    platform1.integral_errors_dsta[i] = np.sign(errors_1[i]) * dt + platform1.integral_errors_dsta[i]
+                    platform2.integral_errors_dsta[i] = np.sign(errors_2[i]) * dt + platform2.integral_errors_dsta[i]
+
+                    control_signals1[i] = platform1.dsta_controllers[i].derivative(errors_1[i], platform1.integral_errors_dsta[i])
+                    control_signals2[i] = platform2.dsta_controllers[i].derivative(errors_2[i], platform2.integral_errors_dsta[i])
             print(f"Actuators CONTROL: P1[{control_signals1}], P2 [{control_signals2}]")
             control_signals1 = [round(control_bounds(x), 0) for x in control_signals1]
             control_signals2 = [round(control_bounds(x), 0) for x in control_signals2]
@@ -183,7 +186,7 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
         arduino.write(b'STOP\n')
         # Plot platform performance
         platform1.plot_actuator_response(log_1)
-        platform2.plot_actuator_response(log_2)
+        #platform2.plot_actuator_response(log_2)
         #platform1.plot_actuator_rmse(log_1)
         #platform2.plot_actuator_rmse(log_2)
     except KeyboardInterrupt:
@@ -249,7 +252,9 @@ def test_Actuator(platform, actuator, controller, steps, dt=0.1, arduino=None, u
             if controller == 'PID':
                 control = platform.pid_control(position, actuator)
             elif controller == 'DSTA':
-                control = platform.dsta_controllers[actuator].derivative(error)
+                platform.integral_errors_dsta[actuator] += np.sign(error)*dt
+                control = platform.dsta_controllers[actuator].derivative(error, platform.integral_errors_dsta[actuator])
+                control = round(control_bounds(control), 0)
                 print("Control", control)
 
             # Send control signal and receive feedback
@@ -301,7 +306,7 @@ def test_Actuator(platform, actuator, controller, steps, dt=0.1, arduino=None, u
 
                 ax[0].plot(time_steps, desired_lengths, label='Desired lengths', linestyle='--')
                 ax[0].plot(time_steps, current_lengths, label='Current lengths')
-                ax[0].set_title('Desired vs Current Actuator Length')
+                ax[0].set_title(f'Desired vs Current Actuator {actuator} Length')
                 ax[0].set_xlabel('Time (s)')
                 ax[0].set_ylabel('Position (cm)')
                 ax[0].legend()
@@ -412,6 +417,5 @@ def go2setpoint(platform1, platform2, positions1, orientations1, positions2, ori
 
         time.sleep(dt)
 
-        print("Finished go2setpoint() execution.")
 
 
