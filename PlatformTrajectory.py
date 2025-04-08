@@ -30,6 +30,14 @@ class PlatformTrajectory:
         self.roll_max = roll_max
         self.pitch_max = pitch_max
 
+    def scale_signal(self, y, target_min, target_max):
+        y_min = np.min(y)
+        y_max = np.max(y)
+        if y_max == y_min:
+            return np.full_like(y, target_min)  # Avoid dived by zero
+        A = target_max-target_min
+        return A*(y-y_min)/(y_max-y_min)+target_min
+
     def generate_trajectory(self, steps, dt, stewart_platform1, stewart_platform2):
         """
         Generates a trajectory for the platform simulating a walking cycle in place using both platforms.
@@ -98,28 +106,36 @@ class PlatformTrajectory:
         t = np.linspace(0, self.T * self.num_cycles, steps)
 
         # Trajectory parameters
-        stride_length = 20          # Total travel in Y (cm)
-        lift_height = 5             # Vertical Z-lift when stepping (cm)
+        stride_length = 10          # Total travel in Y (cm)
         base_z1 = stewart_platform1.home_position[2]
         base_z2 = stewart_platform2.home_position[2]
+        safe_margin = 2  # Margin from physical limits (in cm)
 
         # Smooth sinusoidal stepping pattern
-        smooth_forward = stride_length * 0.5 * (1-np.cos(2*np.pi*t/self.T))     # Forward walk, smoothed
-        lift_pattern = lift_height*np.sin(np.pi*t/self.T)**2                    # Step lifting profile (0 to lift height)
-
         # Platform 1: moves forward and lift
-        Y1 = (stride_length/2)*np.sin(2*np.pi*t/self.T)
-        Z1 = base_z1 + lift_pattern
+        Y1 = (stride_length/2)*np.sin(1*np.pi*t/self.T)
 
-        # Platform 2: moves forward out-of-phase and lifts
+        # Lift profile (0 to 1)
+        raw_lift = np.sin(np.pi*t/self.T)**2
+
+        # Define actuator range for each platform
+        min_z1 = stewart_platform1.min_length + safe_margin
+        max_z1 = stewart_platform1.max_length - safe_margin
+        min_z2 = stewart_platform2.min_length + safe_margin
+        max_z2 = stewart_platform2.max_length - safe_margin
+
+        # Apply scaling to raw lift profile
+        Z1 = self.scale_signal(raw_lift, 10, 15)
+        Z2 = self.scale_signal(np.roll(raw_lift, steps//2), 10, 15)
+
+        # Phase shift Y for platform 2
         Y2 = np.roll(Y1, steps//2)
-        Z2 = base_z2 + np.roll(lift_pattern, steps//2)
 
-        # No lateral motion
+        # No lateral motion in X
         X1 = np.zeros_like(Y1)
         X2 = np.zeros_like(Y2)
 
-        # No rotation
+        #No rotation
         Roll1 = Pitch1 = Yaw1 = np.zeros_like(t)
         Roll2 = Pitch2 = Yaw2 = np.zeros_like(t)
 
@@ -128,6 +144,7 @@ class PlatformTrajectory:
         orientations1 = np.vstack([Roll1, Pitch1, Yaw1]).T
         positions2 = np.vstack([X2, Y2, Z2]).T
         orientations2 = np.vstack([Roll2, Pitch2, Yaw2]).T
+
         return positions1, orientations1, positions2, orientations2
 
 
@@ -165,10 +182,10 @@ class PlatformTrajectory:
         X = np.zeros_like(Roll)
         Y = np.zeros_like(Roll)
         base_z = stewart_platform1.home_position[2]
-        Z = base_z + 5 * (np.sin(2 * np.pi * t / self.T))**2
+        Z = 5 * (np.sin(2 * np.pi * t / self.T))**2
 
         base_z2 = stewart_platform2.home_position[2]
-        Z2 = base_z2 + 5 * (np.sin(2 * np.pi * t / self.T))**2
+        Z2 = 5 * (np.sin(2 * np.pi * t / self.T))**2
 
         # Second platform: out of phase (180° shift)
         Roll2 = np.roll(Roll, steps // 2)

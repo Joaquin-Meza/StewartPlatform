@@ -45,9 +45,9 @@ class StewartPlatform:
 
         self.dsta_controllers = [None]*6
         # (tau, l1, l2, rho1, rho2, w1=0, w2=0)
-        self.dsta_controllers[0] = DSTA(dt, 200, 50, 0.09, 0.905, w1=150, w2=100)
-        self.dsta_controllers[1] = DSTA(dt, 200, 50, 0.09, 0.905, w1=150, w2=70)
-        self.dsta_controllers[2] = DSTA(dt, 200, 50, 0.01, 0.905, w1=50, w2=70)
+        self.dsta_controllers[0] = DSTA(dt, 350, 50, 0.09, 0.905, w1=150, w2=100)
+        self.dsta_controllers[1] = DSTA(dt, 350, 50, 0.09, 0.905, w1=150, w2=70)
+        self.dsta_controllers[2] = DSTA(dt, 350, 50, 0.01, 0.905, w1=50, w2=70)
         self.dsta_controllers[3] = DSTA(dt, 350, 50, 0.01, 0.905, w1=50, w2=50)
         self.dsta_controllers[4] = DSTA(dt, 350, 50, 0.01, 0.905, w1=50, w2=70)
         self.dsta_controllers[5] = DSTA(dt, 350, 70, 0.09, 0.905, w1=50, w2=10)
@@ -147,16 +147,16 @@ class StewartPlatform:
         """
 
         # Apply constraints to prevent excessive rotation
-        orientation[0] = np.clip(orientation[0], -10, 10)       # Roll constraint
-        orientation[1] = np.clip(orientation[1], -20, 20)       # Pitch constraint
-        orientation[2] = np.clip(orientation[2], -10, 10)       # Yaw constraint
+        #orientation[0] = np.clip(orientation[0], -10, 10)       # Roll constraint
+        #orientation[1] = np.clip(orientation[1], -20, 20)       # Pitch constraint
+        #orientation[2] = np.clip(orientation[2], -10, 10)       # Yaw constraint
 
         R = self.rotation_matrix(orientation)       # Rotation matrix from euler angles
-
+        #print(f"[DEBUG R:] {R}")
         P_global = np.array([R @ p + position for p in self.platform_points])   # Global position of points P_i
-        lengths = np.linalg.norm(P_global - self.base_points, axis=1)           # Compute the lengths of each actuator:
-
-        # Convert from simulation (40 cm min) to encoder readings (0 cm min)
+        #print(P_global)
+        lengths = np.linalg.norm(P_global, axis=1) - 12          # Compute the lengths of each actuator:
+        #print(f"[DEBUG] raw lengths before clipping: {lengths}")
         # Enforce actuator constraints
         lengths = np.clip(lengths, self.min_length, self.max_length)    # Keep within actuator limits
         lengths = lengths-0     # Scale to 0 - 30 range     # This line have been making errors if we delete the substracting
@@ -588,7 +588,10 @@ class StewartPlatform:
                 if self.controller_type == 'PID':
                     control_signals[i] = self.pid_control(desired_lengths[i], i)
                 if self.controller_type == 'DSTA':
-                    control_signals[i] = self.dsta_controllers[i].derivative(errors[i])  # Individual actuator control update
+                    self.integral_errors_dsta[i] = np.sign(errors[i])*self.dt*self.integral_errors_dsta[i]
+
+                    control_signals[i] = self.dsta_controllers[i].derivative(errors[i], self.integral_errors_dsta[i])  # Individual actuator control update
+            control_signals = [round(self.control_bounds(x), 0) for x in control_signals]
 
             # Handle actuator movement (with or without serial communication)
             if self.serial_port:

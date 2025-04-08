@@ -186,9 +186,9 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
         arduino.write(b'STOP\n')
         # Plot platform performance
         platform1.plot_actuator_response(log_1)
-        #platform2.plot_actuator_response(log_2)
-        #platform1.plot_actuator_rmse(log_1)
-        #platform2.plot_actuator_rmse(log_2)
+        platform2.plot_actuator_response(log_2)
+        platform1.plot_actuator_rmse(log_1)
+        platform2.plot_actuator_rmse(log_2)
     except KeyboardInterrupt:
         print("\nEmergency stop triggered! Stopping actuators...")
         emergency_stop_triggered = True

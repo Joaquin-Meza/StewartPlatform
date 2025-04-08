@@ -193,23 +193,23 @@ def menu(platform1, platform2, positions1, orientations1, positions2, orientatio
 
 # Initialize trajectory generator
 #trajectory_generator = PlatformTrajectory(v_apoyo=50, v_oscilacion=10, z_max=50, theta_max=15,y_max=10, roll_max=5, pitch_max=5, T=5, num_cycles=3)
-trajectory_generator = PlatformTrajectory(v_apoyo=50, v_oscilacion=20, z_max=50, theta_max=0.5, y_max=10, roll_max=5, pitch_max=10, T=3, num_cycles=1)
+trajectory_generator = PlatformTrajectory(v_apoyo=50, v_oscilacion=20, z_max=30, theta_max=0.5, y_max=10, roll_max=5, pitch_max=10, T=1, num_cycles=1)
 
 # Simulation parameters
 dt = 0.1  # Time step
-expected_time = 30  # Total simulation time
+expected_time = 10  # Total simulation time
 steps = int(expected_time / dt)  # Total steps
 
 # Offset the platforms for side-by-side placement
 offset = 25  # Distance between the two platforms along the Y-axis
 # Create object instances for two platforms
 
-platform1 = StewartPlatform(0, r_B=20, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, -offset, 0])     # Right platform
-platform2 = StewartPlatform(1, r_B=20, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, offset, 0])      # Left platform
+platform1 = StewartPlatform(0, r_B=25, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, -offset, 0])     # Right platform
+platform2 = StewartPlatform(1, r_B=25, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21.85, serial_port=None, controller_type='DSTA', base_offset=[0, offset, 0])      # Left platform
 #platform1.mirror_axis('x')
 #platform2.mirror_axis('x')
 # Generate synchronized trajectories
-positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_trajectory(steps, dt, platform1, platform2)
+positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_trajectory2(steps, dt, platform1, platform2)
 #positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_orientation_test_trajectory(steps, dt, platform1, platform2)
 orientations2 = orientations1
 positions1[:, 1] -= offset  # Left platform (negative Y direction)
@@ -220,4 +220,4 @@ dt = 0.5
 steps = len(positions1)  # Ensure steps match the trajectory length
 
 # Begin main loop
-menu(platform1, platform2, positions1, orientations1, positions2, orientations2, steps, dt=0.1, serial_port='COM5')
+menu(platform1, platform2, positions1, orientations1, positions2, orientations2, steps, dt=0.0001, serial_port='COM5')
