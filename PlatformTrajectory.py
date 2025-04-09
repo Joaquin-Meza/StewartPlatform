@@ -38,7 +38,7 @@ class PlatformTrajectory:
         A = target_max-target_min
         return A*(y-y_min)/(y_max-y_min)+target_min
 
-    def generate_trajectory(self, steps, dt, stewart_platform1, stewart_platform2):
+    def generate_trajectory4(self, steps, dt, stewart_platform1, stewart_platform2):
         """
         Generates a trajectory for the platform simulating a walking cycle in place using both platforms.
 

@@ -137,7 +137,7 @@ def menu(platform1, platform2, positions1, orientations1, positions2, orientatio
                     dt=dt,
                     update_interval=1,  # Update visualization every 5 steps
                     arduino=arduino,
-                    ideal_simulation=0
+                    ideal_simulation=1
                 )
 
             elif choice == '4':
@@ -209,8 +209,8 @@ platform2 = StewartPlatform(1, r_B=25, r_P=15, gamma_B_deg=25.25, gamma_P_deg=21
 #platform1.mirror_axis('x')
 #platform2.mirror_axis('x')
 # Generate synchronized trajectories
+
 positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_trajectory2(steps, dt, platform1, platform2)
-#positions1, orientations1, positions2, orientations2 = trajectory_generator.generate_orientation_test_trajectory(steps, dt, platform1, platform2)
 orientations2 = orientations1
 positions1[:, 1] -= offset  # Left platform (negative Y direction)
 positions2[:, 1] += offset  # Right platform (positive Y direction)

@@ -96,8 +96,8 @@ def simulate_dual_platforms(platform1, platform2, positions1, orientations1, pos
                     control_signals1[i] = platform1.dsta_controllers[i].derivative(errors_1[i], platform1.integral_errors_dsta[i])
                     control_signals2[i] = platform2.dsta_controllers[i].derivative(errors_2[i], platform2.integral_errors_dsta[i])
             print(f"Actuators CONTROL: P1[{control_signals1}], P2 [{control_signals2}]")
-            control_signals1 = [round(control_bounds(x), 0) for x in control_signals1]
-            control_signals2 = [round(control_bounds(x), 0) for x in control_signals2]
+            control_signals1 = np.array([round(control_bounds(x), 0) for x in control_signals1])
+            control_signals2 =np.array([round(control_bounds(x), 0) for x in control_signals2])
 
             # Handle actuator movement with or without serial communication
             if ideal_simulation == 0:
